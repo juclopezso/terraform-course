@@ -1,0 +1,136 @@
+
+# first define a provider
+# provider: plugin that allows us to talk to a specific set of APIs
+# https://registry.terraform.io/browse/providers
+
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.23.1"
+    }
+  }
+}
+
+
+variable "access_key" {
+  description = "AWS access key"
+  type = string
+  sensitive = true
+}
+variable "secret_key" {
+  description = "AWS secret key"
+  type = string
+  sensitive = true
+}
+
+provider "aws" {
+  region = "us-east-1"
+  access_key = var.access_key
+  secret_key = var.secret_key
+}
+
+# create a resource
+# resource "<provider>_<resource_type>" "name" {
+#   config_options...
+#   key = "value"
+# }
+
+# ex. create an EC2 instance
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["099720109477"] # Canonical
+}
+
+resource "aws_instance" "first_server" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t2.micro"
+  # tags to identify on AWS
+  tags = {
+    Name = "ubuntu"
+  }
+}
+
+# creating a VPC with subnet
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
+resource "aws_vpc" "first_vpc" {
+  cidr_block = "10.0.0.0/16"
+  tags = {
+    Name = "production"
+  }
+}
+
+resource "aws_subnet" "subnet_1" {
+  vpc_id     = aws_vpc.first_vpc.id
+  cidr_block = "10.0.1.0/24"
+
+  tags = {
+    Name = "prod-subnet"
+  }
+}
+
+# COMMANDS
+
+# first run the command "terraform init"
+## look for all the providers and download the necessary plugins to interact with the APIs
+## creates the .terraform folder with the providers
+
+# second run the command "terraform plan"
+## dry run of the code so you can see al the changes that will take place.
+## if it's going to delete, create or modify instances
+## kind of git diff
+
+# third rum the command "terraform apply" with "--auto-aprove" automatically approves the changes
+## runs the code in the provider
+
+# destroy all intances run with CAUTION "terraform destroy"
+# to destroy only one instance, delete the code of it
+
+# "terraform" -> shows the list of possible commands
+
+# "terraform state list" -> list of deplyed services
+
+# "terraform state show <ID> (aws_eip.one)" -> detailed output of the resource
+
+# FILES
+
+# "terraform.tfstate" it's like the migrations file produced by terraform. It keeps the changes of the code
+## DO NOT MODIFY OR DELETE!
+
+
+# OUTPUTS: Print custom outputs after running "terraform apply"
+## run "terraform output" to show only the outputs
+## "terraform refresh" refreshes the values and displays the outputs
+
+# RESOURCES
+## "terraform destroy -target <resource>(aws_instance.web_server)" -> destroys only the defined instance
+## "terraform apply -target <resource>(aws_instance.web_server)" -> creates only the defined instance
+#
+
+# VARIABLES
+# most common way to define vars is by using the file "terraform.tfvars"
+
+# we can pass the vars file in the command line like this:
+# "terraform apply -var-file example.tfvars"
+
+# we can assign values to variables in the command line like this:
+# "terraform apply -var 'subnet_prefix=10.0.1.0/24'" 
+
+# ENV VARIABLES
+# "export $(xargs < .env)" -> export .env variables
+# to prevent env variables been stored in the bash history, put an space at the beginning of the command. Example: “ export TF_VAR_access_key = "MYKEY””
+
+
